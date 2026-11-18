@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RetailIQ: AI Sales & Stock Assistant</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+:root{--bg:#0d2530;--card:#143341;--line:#23495b;--ink:#eaf2f4;--mute:#8fb0bd;--gold:#f2b134;--good:#5cc8a1;--bad:#e5604d;--mid:#f2b134;--r:18px}
+body.light{--bg:#eef4f6;--card:#fff;--line:#d5e3e8;--ink:#12303c;--mute:#5b7c89}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Bricolage Grotesque',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding:28px clamp(16px,4vw,48px) 100px}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+h1{font-size:clamp(26px,4vw,40px);font-weight:800;letter-spacing:-1px}
+.sub{color:var(--mute);margin-top:4px}
+.btn{background:var(--card);border:1px solid var(--line);color:var(--ink);padding:9px 14px;border-radius:12px;cursor:pointer;font:inherit}
+.btn:hover{border-color:var(--gold)}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(12,1fr)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px;min-width:0}
+.card h2{font-size:15px;font-weight:600;color:var(--mute);margin-bottom:14px}
+.hero{grid-column:span 4;display:flex;flex-direction:column;align-items:center;text-align:center;border-color:var(--gold)}
+.ring{position:relative;width:190px;height:190px}
+.ring svg{transform:rotate(-90deg)}
+.ring .num{position:absolute;inset:0;display:grid;place-items:center;font-size:56px;font-weight:800;letter-spacing:-2px}
+.ring small{display:block;font-size:13px;font-weight:400;color:var(--mute);letter-spacing:0;margin-top:-6px}
+.parts{width:100%;margin-top:16px;display:grid;gap:8px;text-align:left}
+.part{display:grid;grid-template-columns:110px 1fr 40px;gap:8px;align-items:center;font-size:13px;color:var(--mute)}
+.bar{height:7px;background:var(--line);border-radius:9px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:9px;background:var(--gold)}
+.kpis{grid-column:span 8;display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.kpi .v{font-size:34px;font-weight:800;letter-spacing:-1px}
+.kpi .l{color:var(--mute);font-size:14px}
+.chip{display:inline-block;margin-top:8px;font-size:13px;padding:3px 9px;border-radius:20px}
+.up{background:#5cc8a122;color:var(--good)}.down{background:#e5604d22;color:var(--bad)}.flat{background:var(--line);color:var(--mute)}
+.c7{grid-column:span 7}.c5{grid-column:span 5}.c4{grid-column:span 4}.c8{grid-column:span 8}
+.chart{position:relative;height:240px}
+.row{display:grid;grid-template-columns:1fr 90px;gap:10px;align-items:center;margin-bottom:12px;font-size:14px}
+.row .bar{height:9px}.row small{color:var(--mute);display:block}
+.act{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);font-size:14px;line-height:1.4}
+.act:last-child{border:0}
+.dot{flex:none;width:10px;height:10px;border-radius:50%;margin-top:5px}
+.high{background:var(--bad)}.mid{background:var(--mid)}.low{background:var(--good)}
+.empty{color:var(--mute);font-size:14px}
+#fab{position:fixed;right:24px;bottom:24px;background:var(--gold);color:#12303c;border:0;border-radius:30px;padding:14px 22px;font:600 16px inherit;font-family:inherit;cursor:pointer;box-shadow:0 8px 24px #0006}
+#panel{position:fixed;right:24px;bottom:84px;width:min(400px,calc(100vw - 32px));height:min(540px,70vh);background:var(--card);border:1px solid var(--line);border-radius:var(--r);display:none;flex-direction:column;overflow:hidden;box-shadow:0 12px 40px #0008}
+#panel.open{display:flex}
+.ph{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px}
+select,#q{background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px;font:inherit}
+#msgs{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.m{max-width:88%;padding:10px 13px;border-radius:14px;font-size:14px;line-height:1.5;background:var(--bg)}
+.m.me{align-self:flex-end;background:var(--gold);color:#12303c}
+.m table{border-collapse:collapse;margin-top:6px;font-size:13px}.m td,.m th{border-bottom:1px solid var(--line);padding:4px 8px;text-align:left}
+.chips{display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px 0}.chips .btn{padding:5px 10px;font-size:13px}
+.pf{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}#q{flex:1}
+@media(max-width:900px){.hero,.kpis,.c7,.c5,.c4,.c8{grid-column:span 12}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="top">
+  <div><h1 id="greet">Hello</h1><div class="sub" id="date"></div></div>
+  <div><button class="btn" onclick="load()">Refresh</button> <button class="btn" onclick="document.body.classList.toggle('light')">Light / dark</button></div>
+</div>
+
+<div class="grid">
+  <div class="card hero">
+    <h2>Business health</h2>
+    <div class="ring">
+      <svg width="190" height="190" viewBox="0 0 190 190"><circle cx="95" cy="95" r="82" fill="none" stroke="var(--line)" stroke-width="14"/><circle id="arc" cx="95" cy="95" r="82" fill="none" stroke="var(--gold)" stroke-width="14" stroke-linecap="round" stroke-dasharray="515" stroke-dashoffset="515" style="transition:stroke-dashoffset 1.4s ease-out"/></svg>
+      <div class="num"><div><span id="score">0</span><small>out of 100</small></div></div>
+    </div>
+    <div class="parts" id="parts"></div>
+  </div>
+  <div class="kpis">
+    <div class="card kpi"><div class="l">Revenue today</div><div class="v" id="k-rev">0</div><span class="chip" id="c-rev"></span></div>
+    <div class="card kpi"><div class="l">Profit today</div><div class="v" id="k-pro">0</div><span class="chip" id="c-pro"></span></div>
+    <div class="card kpi"><div class="l">Bills today</div><div class="v" id="k-ord">0</div><span class="chip" id="c-ord"></span></div>
+    <div class="card kpi"><div class="l">Money tied up in stock</div><div class="v" id="k-stk">0</div><span class="chip flat" id="c-stk"></span></div>
+  </div>
+
+  <div class="card c7"><h2>Revenue and profit, last 7 days</h2><div class="chart"><canvas id="ch-trend"></canvas></div></div>
+  <div class="card c5"><h2>Sales by category</h2><div class="chart"><canvas id="ch-cat"></canvas></div></div>
+
+  <div class="card c4"><h2>Top sellers this week</h2><div class="chart"><canvas id="ch-top"></canvas></div></div>
+  <div class="card c4"><h2>Running low</h2><div id="low"></div></div>
+  <div class="card c4"><h2>What to do today</h2><div id="acts"></div></div>
+</div>
+
+<button id="fab" onclick="document.getElementById('panel').classList.toggle('open')">Ask RetailIQ</button>
+<div id="panel">
+  <div class="ph"><b>Ask RetailIQ</b>
+    <select id="lang"><option>English</option><option>Hindi</option><option>Kannada</option><option>Telugu</option></select></div>
+  <div id="msgs"><div class="m">Ask about sales, profit or stock. Try "What will run out soon?"</div></div>
+  <div class="chips"><button class="btn" onclick="ask('What will run out soon?')">Predictions</button><button class="btn" onclick="ask('What is my dead stock?')">Dead stock</button><button class="btn" onclick="ask('What is my profit today?')">Profit</button><button class="btn" onclick="ask('Which products are low on stock?')">Low stock</button></div>
+  <div class="pf"><input id="q" placeholder="Type your question" autocomplete="off"><button class="btn" onclick="send()">Send</button></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id), inr=n=>"₹"+Math.round(n).toLocaleString("en-IN");
+const sid=Math.random().toString(36).slice(2); let charts={};
+function count(el,to,fmt){const t0=performance.now();(function f(t){const p=Math.min((t-t0)/900,1);el.textContent=fmt(to*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(f)})(t0)}
+function chip(el,cur,prev){const d=prev?(cur-prev)/prev*100:0;el.className="chip "+(!prev?"flat":d>=0?"up":"down");el.textContent=!prev?"no data for yesterday":(d>=0?"▲ ":"▼ ")+Math.abs(d).toFixed(0)+"% vs yesterday"}
+function draw(id,cfg){if(charts[id])charts[id].destroy();charts[id]=new Chart($(id),cfg)}
+async function load(){
+  const d=await (await fetch("/dashboard/data")).json(), h=new Date().getHours();
+  $("greet").textContent=(h<12?"Good morning":h<17?"Good afternoon":"Good evening")+", here is your shop today";
+  $("date").textContent=new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  count($("k-rev"),d.today.revenue,inr);count($("k-pro"),d.today.profit,inr);count($("k-ord"),d.today.orders,n=>Math.round(n));count($("k-stk"),d.stock_value,inr);
+  chip($("c-rev"),d.today.revenue,d.yesterday.revenue);chip($("c-pro"),d.today.profit,d.yesterday.profit);chip($("c-ord"),d.today.orders,d.yesterday.orders);
+  $("c-stk").textContent=d.dead_count?inr(d.dead_value)+" in items not selling":"all items are moving";
+  const col=d.score>=70?"#5cc8a1":d.score>=45?"#f2b134":"#e5604d";
+  $("arc").style.stroke=col;$("arc").style.strokeDashoffset=515*(1-d.score/100);count($("score"),d.score,n=>Math.round(n));
+  const max={"Stock health":30,"Profit margin":25,"Sales trend":25,"Dead stock":20};
+  $("parts").innerHTML=Object.entries(d.parts).map(([k,v])=>`<div class="part"><span>${k}</span><div class="bar"><i style="width:${v/max[k]*100}%;background:${col}"></i></div><span>${v}/${max[k]}</span></div>`).join("");
+  const mute=getComputedStyle(document.body).getPropertyValue("--mute"),grid="#8fb0bd22";
+  const base={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:mute}}},scales:{x:{ticks:{color:mute},grid:{display:false}},y:{ticks:{color:mute},grid:{color:grid}}}};
+  const lbl=d.daily.map(x=>new Date(x.date).toLocaleDateString("en-IN",{weekday:"short"}));
+  draw("ch-trend",{type:"line",data:{labels:lbl,datasets:[{label:"Revenue",data:d.daily.map(x=>x.revenue),borderColor:"#f2b134",backgroundColor:"#f2b13422",fill:true,tension:.35},{label:"Profit",data:d.daily.map(x=>x.profit),borderColor:"#5cc8a1",tension:.35}]},options:base});
+  draw("ch-cat",{type:"doughnut",data:{labels:d.categories.map(x=>x.name),datasets:[{data:d.categories.map(x=>x.revenue),backgroundColor:["#f2b134","#5cc8a1","#e5604d","#6fa8dc","#b58ad9"],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:"62%",plugins:{legend:{position:"right",labels:{color:mute}}}}});
+  draw("ch-top",{type:"bar",data:{labels:d.top.map(x=>x.name),datasets:[{data:d.top.map(x=>x.revenue),backgroundColor:"#f2b134",borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:"y",plugins:{legend:{display:false}},scales:{x:{type:"linear",ticks:{color:mute},grid:{color:grid}},y:{type:"category",ticks:{color:mute},grid:{display:false}}}}});
+  $("low").innerHTML=d.low_stock.length?d.low_stock.map(x=>`<div class="row"><div>${x.name}<small>${x.days_left?"about "+x.days_left+" days left":"no recent sales"}</small></div><div><div class="bar"><i style="width:${x.stock/5*100}%;background:${x.stock<=2?"var(--bad)":"var(--mid)"}"></i></div><small>${x.stock} left</small></div></div>`).join(""):'<div class="empty">Every item has enough stock.</div>';
+  $("acts").innerHTML=d.actions.length?d.actions.map(a=>`<div class="act"><span class="dot ${a.level}"></span><span>${a.text}</span></div>`).join(""):'<div class="empty">Nothing urgent today.</div>';
+}
+function add(t,me){const m=document.createElement("div");m.className="m"+(me?" me":"");if(me||typeof marked==="undefined")m.textContent=t;else m.innerHTML=marked.parse(t);$("msgs").appendChild(m);$("msgs").scrollTop=1e9;return m}
+async function send(){const t=$("q").value.trim();if(!t)return;$("q").value="";add(t,true);const w=add("Thinking…");
+  try{const r=await fetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:t,session:sid,language:$("lang").value})});w.remove();add((await r.json()).reply)}catch(e){w.remove();add("Could not reach the server. Check that it is running.")}}
+function ask(t){$("q").value=t;send()}
+$("q").addEventListener("keydown",e=>{if(e.key==="Enter")send()});
+load();setInterval(load,60000);
+</script>
+</body>
+</html>
