@@ -238,5 +238,52 @@ def clear_udhaar(customer_name: str) -> dict:
         return {"status": "success", "message": f"Cleared udhaar for {customer_name}."}
     return {"status": "error", "message": f"No pending udhaar found for {customer_name}."}
 
+@mcp.tool()
+def explain_sales_change(day: str = "") -> dict:
+    """Explain why sales on one day (YYYY-MM-DD, default yesterday) were higher or lower than the day before. Returns only facts found in the data: revenue, bills, average bill, biggest product gains and drops, price changes, possible stock-outs and the same-weekday average. Explain using these facts only and never invent causes."""
+    try:
+        d = datetime.strptime(day, "%Y-%m-%d").date() if day else datetime.now(IST).date() - timedelta(days=1)
+    except ValueError:
+        return {"error": "Date must be YYYY-MM-DD"}
+    p = d - timedelta(days=1)
+    with closing(connect()) as db:
+        def tot(x):
+            r = db.execute("SELECT COALESCE(SUM(quantity*unit_price),0), COUNT(*) FROM sales WHERE substr(sale_date,1,10)=?", (x.isoformat(),)).fetchone()
+            return float(r[0]), int(r[1])
+
+        def prod(x):
+            q = "SELECT p.name, SUM(s.quantity*s.unit_price), AVG(s.unit_price) FROM sales s JOIN products p ON p.id=s.product_id WHERE substr(s.sale_date,1,10)=? GROUP BY p.id"
+            return {r[0]: (float(r[1]), float(r[2])) for r in db.execute(q, (x.isoformat(),))}
+
+        rev, bills = tot(d)
+        prev, pbills = tot(p)
+        a, b = prod(d), prod(p)
+        moves = sorted(((n, round(a.get(n, (0, 0))[0] - b.get(n, (0, 0))[0])) for n in set(a) | set(b)), key=lambda m: m[1])
+        changes = [{"product": n, "old_price": round(b[n][1]), "new_price": round(a[n][1])} for n in a if n in b and abs(a[n][1] - b[n][1]) > 0.03 * b[n][1]]
+        low = {r[0] for r in db.execute("SELECT name FROM products WHERE stock <= 5")}
+        gone = [n for n in b if n not in a and n in low]
+        same = [tot(d - timedelta(days=7 * k))[0] for k in range(1, 5)]
+        same = [v for v in same if v > 0]
+    change = round((rev - prev) / prev * 100, 1) if prev else None
+    return {
+        "date": d.isoformat(),
+        "weekday": d.strftime("%A"),
+        "revenue": round(rev),
+        "previous_day_revenue": round(prev),
+        "change_percent": change,
+        "bills": bills,
+        "previous_day_bills": pbills,
+        "average_bill": round(rev / bills) if bills else 0,
+        "previous_day_average_bill": round(prev / pbills) if pbills else 0,
+        "biggest_drops": [{"product": n, "change": c} for n, c in moves[:3] if c < 0],
+        "biggest_gains": [{"product": n, "change": c} for n, c in reversed(moves[-3:]) if c > 0],
+        "price_changes": changes,
+        "possible_stockouts": gone,
+        "same_weekday_average": round(sum(same) / len(same)) if same else None,
+        "note": "Stock history is not recorded, so stock-outs are possible, not certain.",
+    }
+
+
+
 if __name__ == "__main__":
     mcp.run(transport="stdio")

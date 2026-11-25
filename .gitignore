@@ -1,6 +1,11 @@
 .env
+*.db
 __pycache__/
-*.pyc
-.vscode/
-data/retailiq.db
 venv/
+_archive/
+orders/
+*backup*
+*_other.py
+patch_*.py
+install_manage.py
+*.zip

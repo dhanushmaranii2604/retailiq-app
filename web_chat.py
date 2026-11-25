@@ -571,6 +571,10 @@ async def dashboard_data():
     }
 
 
+from manage import router as manage_router
+app.include_router(manage_router)
+
+
 @app.get("/", response_class=HTMLResponse)
 async def home():
     f = Path(__file__).resolve().parent / "dashboard.html"
